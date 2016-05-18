@@ -50,17 +50,23 @@ function register($username, $password) {
 		
 		
 		// TODO: get suitable letters from password and create hash of every mask
+		// TODO: add change number of partial password letters from range <5, pass_length/2>
 		
-		$p = getNumberOfCombinations($password);
-		if ($p > 1000) $p = 1000;
-		$masks = array();
-		while (count($masks) < $p) {
-			$mask = createMask($password);
-			if (!in_array($mask, $masks)) array_push($masks, $mask);
+		$passwordLength = strlen($password);
+		$partialLength = floor($passwordLength/2);
+		if ($partialLength < 5) {
+			$partialLength = 5;
+			createPasswords($password, $passwordLength, $partialLength);
+		} else {
+			$i = 5;
+			while ($i <= $partialLength) {
+				createPasswords($password, $passwordLength, $i);
+				$i++;
+			}
 		}
 		
 		echo "<pre>";
-		print_r($masks);
+		//print_r($masks);
 		echo "</pre>";
 		
 		$conn->close();
@@ -72,10 +78,23 @@ function randLetter() {
     $rand_letter = $a_z[$int];
     return $rand_letter;
 }
-function getNumberOfCombinations($password) {
-		$n = strlen($password);
-		$r = round($n/2);
-		if ($r < 5) $r = 5;
+function createPasswords($password, $passwordLength, $partialLength) {
+	$p = getNumberOfCombinations($password, $passwordLength, $partialLength);
+	if ($p > 1000) $p = 1000;
+	$masks = array();
+	while (count($masks) < $p) {
+		$mask = createMask($password, $passwordLength, $partialLength);
+		if (!in_array($mask, $masks)) {
+			array_push($masks, $mask);
+	
+			echo $partial_password_hash = createPartialPasswordHash($mask, $password);
+			echo "\n";
+			//$insert_password = "insert into passwords (user_id, partial_password_hash, number_of_chars, mask) values
+			//							(_, $partial_password_hash, _, $mask)";
+		}
+	}
+}
+function getNumberOfCombinations($password, $n, $r) {
 		$nr = $n - $r;
 		
 		$ns = 1;
@@ -93,23 +112,33 @@ function getNumberOfCombinations($password) {
 		
 		return $p = $ns / ($nrs * $rs);
 }
-function createMask($password) {	
-	$length = round(strlen($password)/2);
-	if ($length < 5) $length = 5;
-	
+function createMask($password, $passwordLength, $partialLength) {
 	$mask = array_fill(0, 16, 0);
 	
-	for ($i = 0; $i < $length; $i++) {
-		$index = randIndex($mask);
+	for ($i = 0; $i < $partialLength; $i++) {
+		$index = randIndex($mask, $passwordLength-1);
 		$mask[$index] = 1;
 	}
 	
 	return $mask;
 }
-function randIndex($array) {
-	$index = rand(0, count($array)-1);
-	while ($array[$index] == 1) $index = rand(0, count($array)-1);
+function randIndex($array, $length) {
+	$index = rand(0, $length);
+	while ($array[$index] == 1) $index = rand(0, $length);
 	return $index;
+}
+function createPartialPasswordHash($mask, $password, $salt) {
+	$passwordArray = str_split($password);
+	$resultPasswordArray = array();
+	
+	for ($i = 0; $i < count($mask); $i++) {
+		if ($mask[$i] == 1) {
+			$resultPasswordArray[$i] = $passwordArray[$i];
+		}
+	}
+	
+	return implode($resultPasswordArray);
+	//crypt(implode($resultPasswordArray) . $salt);
 }
 
 ?>

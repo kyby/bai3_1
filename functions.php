@@ -46,28 +46,21 @@ function register($username, $password) {
 		$conn = getDBConnection();
 		$insert_user = "insert into users (username, password_hash, salt, block_after, ret_question, ret_answer) values
 						('$username', '$password_hash', '$salt', 8, 'Nie jestes robotem? Wpisz $question_number', '$question_number')";
-		//$query = $conn->query($insert_user);
-		
-		
-		// TODO: get suitable letters from password and create hash of every mask
-		// TODO: add change number of partial password letters from range <5, pass_length/2>
+		$query = $conn->query($insert_user);
+		$userID = $conn->insert_id;
 		
 		$passwordLength = strlen($password);
 		$partialLength = floor($passwordLength/2);
 		if ($partialLength < 5) {
 			$partialLength = 5;
-			createPasswords($password, $passwordLength, $partialLength);
+			createPasswords($userID, $password, $passwordLength, $partialLength);
 		} else {
 			$i = 5;
 			while ($i <= $partialLength) {
-				createPasswords($password, $passwordLength, $i);
+				createPasswords($userID, $password, $passwordLength, $i);
 				$i++;
 			}
 		}
-		
-		echo "<pre>";
-		//print_r($masks);
-		echo "</pre>";
 		
 		$conn->close();
 	}
@@ -78,19 +71,25 @@ function randLetter() {
     $rand_letter = $a_z[$int];
     return $rand_letter;
 }
-function createPasswords($password, $passwordLength, $partialLength) {
+function createPasswords($userID, $password, $passwordLength, $partialLength) {
 	$p = getNumberOfCombinations($password, $passwordLength, $partialLength);
-	if ($p > 1000) $p = 1000;
+	// Ograniczenie ilosci czesciowych hasel kazdej dlugosci, aby operacja wstawiania do bazy trwala krocej
+	if ($passwordLength >= 11) if ($p > 50) $p = 50;
+	if ($passwordLength >= 13) if ($p > 25) $p = 25;
+	if ($passwordLength >= 15) if ($p > 15) $p = 15;
 	$masks = array();
 	while (count($masks) < $p) {
 		$mask = createMask($password, $passwordLength, $partialLength);
 		if (!in_array($mask, $masks)) {
 			array_push($masks, $mask);
 	
-			echo $partial_password_hash = createPartialPasswordHash($mask, $password);
-			echo "\n";
-			//$insert_password = "insert into passwords (user_id, partial_password_hash, number_of_chars, mask) values
-			//							(_, $partial_password_hash, _, $mask)";
+			$partial_password_hash = createPartialPasswordHash($mask, $password);
+			$maskToAdd = implode($mask);
+			$conn = getDBConnection();
+		   $insert_password = "insert into passwords (user_id, partial_password_hash, number_of_chars, mask) values
+										($userID, '$partial_password_hash', $partialLength, '$maskToAdd')";
+			$query = $conn->query($insert_password);
+			$conn->close();
 		}
 	}
 }
@@ -137,8 +136,70 @@ function createPartialPasswordHash($mask, $password, $salt) {
 		}
 	}
 	
-	return implode($resultPasswordArray);
-	//crypt(implode($resultPasswordArray) . $salt);
+	return crypt(implode($resultPasswordArray) . $salt);
+}
+
+
+function getUserIDFromDB($username) {
+	$conn = getDBConnection();
+	$select = "select user_id
+				from users
+				where username='$username'";
+	$query = $conn->query($select);
+	$row = $query->fetch_assoc();
+	$conn->close();
+	
+	return $row["user_id"];
+}
+
+function getNumberOfChars($userID) {
+	$conn = getDBConnection();
+	$select = "select max(number_of_chars) as max_number
+				from passwords
+				where user_id=$userID and is_used=0";
+	$query = $conn->query($select);
+	$numOfChars = $query->fetch_assoc();
+	
+	$numberOfChars = rand(5, $numOfChars["max_number"]);
+	
+	$conn->close();
+	
+	return $numberOfChars;
+}
+
+function getMask($userID, $numberOfChars) {
+	$conn = getDBConnection();
+	$select = "select mask
+				from passwords
+				where user_id=$userID and is_used=0 and number_of_chars=$numberOfChars
+				order by rand()";
+	$query = $conn->query($select);
+	$mask = $query->fetch_assoc();
+	
+	$conn->close();
+	
+	return str_split($mask["mask"]);
+}
+
+function isMaskExists($partialPassword) {
+	$maskArray = array_fill(0, 16, 0);
+ 	while (list($key, $value) = each($partialPassword)) {
+		if ($value != "") $maskArray[$key] = "1";
+   }
+
+	$mask = implode($maskArray);
+	
+	$conn = getDBConnection();
+	$select = "select mask
+				from passwords
+				where mask = '$mask'";
+	$query = $conn->query($select);
+	$mask = $query->fetch_assoc();
+	
+	$conn->close();
+	
+	if ($mask == null) return false;
+	return true;
 }
 
 ?>

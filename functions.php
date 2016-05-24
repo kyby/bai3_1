@@ -167,21 +167,40 @@ function getNumberOfChars($userID) {
 	return $numberOfChars;
 }
 
-function getMask($userID, $numberOfChars) {
+function getMask($userID) {
 	$conn = getDBConnection();
-	$select = "select mask
-				from passwords
-				where user_id=$userID and is_used=0 and number_of_chars=$numberOfChars
-				order by rand()";
+	$select = "select last_used
+							from passwords
+							where user_id=$userID and is_used=0 and last_used=1";
 	$query = $conn->query($select);
-	$mask = $query->fetch_assoc();
+	$isUsingNow = $query->fetch_assoc();
+	
+	if ($isUsingNow == null) {
+		$numberOfChars = getNumberOfChars($userID);
+		$select = "select mask
+					from passwords
+					where user_id=$userID and is_used=0 and number_of_chars=$numberOfChars";
+		$query = $conn->query($select);
+		$mask = $query->fetch_assoc();
+	
+		$maskString = implode($mask);
+		$update = "update passwords set last_used=1 where user_id=$userID and mask='$maskString'";
+		
+		$conn->query($update);
+	} else {
+		$select = "select mask
+						from passwords
+						where user_id=$userID and last_used=1 and is_used=0";
+		$query = $conn->query($select);
+		$mask = $query->fetch_assoc();
+	}
 	
 	$conn->close();
 	
 	return str_split($mask["mask"]);
 }
 
-function isMaskExists($partialPassword) {
+function retrieveMask($partialPassword, $username) {
 	$maskArray = array_fill(0, 16, 0);
  	while (list($key, $value) = each($partialPassword)) {
 		if ($value != "") $maskArray[$key] = "1";
@@ -189,17 +208,22 @@ function isMaskExists($partialPassword) {
 
 	$mask = implode($maskArray);
 	
+	$userID = getUserIDFromDB($username);
+	
 	$conn = getDBConnection();
 	$select = "select mask
 				from passwords
-				where mask = '$mask'";
+				where mask='$mask' and user_id=$userID and is_used=0 and last_used=1";
 	$query = $conn->query($select);
+	
+	//$update = "update passwords set is_used=0 where user_id=$userID and mask='$mask'";
+	//$conn->query($update);
+		
 	$mask = $query->fetch_assoc();
 	
 	$conn->close();
 	
-	if ($mask == null) return false;
-	return true;
+	return implode($mask);
 }
 
 ?>

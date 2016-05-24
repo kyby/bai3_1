@@ -15,16 +15,15 @@ if (isset($_GET["getUserAction"])) {
 	if (isUsernameExists($username)) {
 		// istnieje
 		$userID = getUserIDFromDB($username);
-		echo $numberOfChars = getNumberOfChars($userID);
-		echo "<br />";
-		$mask = getMask($userID, $numberOfChars);
+		//echo $numberOfChars = getNumberOfChars($userID);
+		//echo "<br />";
+		$mask = getMask($userID);
 ?>		
 		<form id="login" action="login.php" method="get">
 	Hasło:<br />
 <?php
 		$disabled = "";
 		for ($i = 0; $i < count($mask); $i++) {
-			//echo $mask[$i];	// idziemy po kazdym elemencie maski
 			if ($mask[$i] == '1') {
 				$disabled = "";
 			} else {
@@ -36,7 +35,7 @@ if (isset($_GET["getUserAction"])) {
 			<input type="text" name="username" value="<?php echo $username; ?>" hidden />
 			<input type="submit" name="loginAction" value="Zaloguj" />
 		</form>
-<?php	
+<?php
 	} else {
 		// nie istnieje
 		echo "! user nie istnieje";
@@ -52,12 +51,12 @@ if (isset($_GET["getUserAction"])) {
 
 if (isset($_GET["loginAction"])) {
 	$partialPassword = $_GET["p"];
+	$username = $_GET["username"];
 	
-	if (isMaskExists($partialPassword)) {
-		echo "istnieje taka maska";
-	} else {
-		echo "taka maska nie istnieje";
-	}
+	echo $mask = retrieveMask($partialPassword, $username);
+	
+	// jesli mamy maske, to znaczy ze uzyto tej samej ktora wczesniej wylosowano
+	// jesli nie mamy, to probowano zmienic zadanie get
 }
 
 ?>

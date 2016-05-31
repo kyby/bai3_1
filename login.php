@@ -15,8 +15,6 @@ if (isset($_GET["getUserAction"])) {
 	if (isUsernameExists($username)) {
 		// istnieje
 		$userID = getUserIDFromDB($username);
-		//echo $numberOfChars = getNumberOfChars($userID);
-		//echo "<br />";
 		$mask = getMask($userID);
 ?>		
 		<form id="login" action="login.php" method="get">
@@ -43,20 +41,34 @@ if (isset($_GET["getUserAction"])) {
 }
 ?>
 
-
 </body>
 </html>
 
 <?php
 
 if (isset($_GET["loginAction"])) {
-	$partialPassword = $_GET["p"];
+ 	$partialPassword = $_GET["p"];
 	$username = $_GET["username"];
 	
-	echo $mask = retrieveMask($partialPassword, $username);
+	$mask = retrieveMask($partialPassword, $username);
 	
-	// jesli mamy maske, to znaczy ze uzyto tej samej ktora wczesniej wylosowano
-	// jesli nie mamy, to probowano zmienic zadanie get
+	if ($mask != null) {
+		$partialHash = getPartialHash($username, $mask);
+		$salt = getUserSaltFromDB($username);
+		$currentHash = reCreatePartialPasswordHash(str_split($mask), implode($partialPassword), $salt);
+				
+		if ($partialHash == $currentHash) {
+			echo "Poprawne haslo";
+			setPasswordChecked($mask, $username);
+			// ustawic last_used = 0 i is_used = 1
+		} else {
+			echo "Niepoprawne haslo";
+			echo "<a href='index.php'>Powrot</a>";
+		}
+	} else {
+		echo "Niepoprawne haslo";
+		echo "<a href='index.php'>Powrot</a>";
+	}
 }
 
 ?>

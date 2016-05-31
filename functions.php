@@ -53,11 +53,11 @@ function register($username, $password) {
 		$partialLength = floor($passwordLength/2);
 		if ($partialLength < 5) {
 			$partialLength = 5;
-			createPasswords($userID, $password, $passwordLength, $partialLength);
+			createPasswords($userID, $password, $passwordLength, $partialLength, $salt);
 		} else {
 			$i = 5;
 			while ($i <= $partialLength) {
-				createPasswords($userID, $password, $passwordLength, $i);
+				createPasswords($userID, $password, $passwordLength, $i, $salt);
 				$i++;
 			}
 		}
@@ -71,11 +71,11 @@ function randLetter() {
     $rand_letter = $a_z[$int];
     return $rand_letter;
 }
-function createPasswords($userID, $password, $passwordLength, $partialLength) {
+function createPasswords($userID, $password, $passwordLength, $partialLength, $salt) {
 	$p = getNumberOfCombinations($password, $passwordLength, $partialLength);
 	// Ograniczenie ilosci czesciowych hasel kazdej dlugosci, aby operacja wstawiania do bazy trwala krocej
-	if ($passwordLength >= 11) if ($p > 50) $p = 50;
-	if ($passwordLength >= 13) if ($p > 25) $p = 25;
+	if ($passwordLength >= 11) if ($p > 50) $p = 15;
+	if ($passwordLength >= 13) if ($p > 25) $p = 15;
 	if ($passwordLength >= 15) if ($p > 15) $p = 15;
 	$masks = array();
 	while (count($masks) < $p) {
@@ -83,7 +83,7 @@ function createPasswords($userID, $password, $passwordLength, $partialLength) {
 		if (!in_array($mask, $masks)) {
 			array_push($masks, $mask);
 	
-			$partial_password_hash = createPartialPasswordHash($mask, $password);
+			$partial_password_hash = createPartialPasswordHash($mask, $password, $salt);
 			$maskToAdd = implode($mask);
 			$conn = getDBConnection();
 		   $insert_password = "insert into passwords (user_id, partial_password_hash, number_of_chars, mask) values
@@ -136,7 +136,10 @@ function createPartialPasswordHash($mask, $password, $salt) {
 		}
 	}
 	
-	return crypt(implode($resultPasswordArray) . $salt);
+	return crypt(implode($resultPasswordArray), $salt);
+}
+function reCreatePartialPasswordHash($mask, $password, $salt) {
+	return crypt($password, $salt);
 }
 
 
@@ -150,6 +153,18 @@ function getUserIDFromDB($username) {
 	$conn->close();
 	
 	return $row["user_id"];
+}
+
+function getUserSaltFromDB($username) {
+	$conn = getDBConnection();
+	$select = "select salt
+				from users
+				where username='$username'";
+	$query = $conn->query($select);
+	$row = $query->fetch_assoc();
+	$conn->close();
+	
+	return $row["salt"];
 }
 
 function getNumberOfChars($userID) {
@@ -215,15 +230,35 @@ function retrieveMask($partialPassword, $username) {
 				from passwords
 				where mask='$mask' and user_id=$userID and is_used=0 and last_used=1";
 	$query = $conn->query($select);
-	
-	//$update = "update passwords set is_used=0 where user_id=$userID and mask='$mask'";
-	//$conn->query($update);
 		
 	$mask = $query->fetch_assoc();
 	
 	$conn->close();
 	
 	return implode($mask);
+}
+
+function getPartialHash($username, $mask) {
+	$userID = getUserIDFromDB($username);
+	
+	$conn = getDBConnection();
+	$select = "select partial_password_hash
+				from passwords
+				where mask='$mask' and user_id=$userID and is_used=0 and last_used=1";
+	$query = $conn->query($select);
+	$row = $query->fetch_assoc();
+	$conn->close();
+	
+	return $row["partial_password_hash"];
+}
+
+function setPasswordChecked($mask, $username) {
+	$userID = getUserIDFromDB($username);
+	
+	$conn = getDBConnection();
+	$update = "update passwords set last_used=0, is_used=1 where user_id=$userID and mask='$mask'";
+	$conn->query($update);
+	$conn->close();
 }
 
 ?>

@@ -4,7 +4,7 @@
 <?php
 include("functions.php");
 if (!isLoggedIn()) {
-	header("location: login.php");
+	header("location: index.php");
 }
 ?>
 
@@ -14,7 +14,6 @@ if (!isLoggedIn()) {
 	<input type="button" value="Wyloguj" onClick="location.href='logout.php'" /></p>
 	
 	<input type="button" value="Wiadomości" onClick="location.href='messages.php'" /></p>
-	<br />
 
 	<h3>Statystyki logowania</h3>
 	<table>
@@ -46,8 +45,6 @@ if (!isLoggedIn()) {
 		</tr>
 	</table>
 	
-	<br />
-	
 	<h3>Blokowanie konta</h3>
 	<?php
 		$blockAttempts = "";
@@ -66,8 +63,27 @@ if (!isLoggedIn()) {
 	</form>
 	
 	<h3>Zmiana hasła</h3>
-	<!--<form id="pass_change" action="settings.php" method="get">
-	</form>-->
+<?php
+	$userID = getUserFromSession()["user_id"];
+	$mask = getMask($userID);
+?>		
+	<form id="password_change" action="settings.php" method="get">
+		Stare hasło:
+<?php
+		$disabled = "";
+		for ($i = 0; $i < count($mask); $i++) {
+			if ($mask[$i] == '1') {
+				$disabled = "";
+			} else {
+				$disabled = "disabled";
+			}
+		echo "<input type='password' name='p[$i]' maxlength='1' $disabled size='1' />";
+		}
+?>
+		<br />Nowe hasło: <input type="password" name="new_password1" /><br />
+		Powtórz nowe hasło: <input type="password" name="new_password2" /><br />
+		<input type="submit" name="passwordChangeAction" value="Zmień" />
+	</form>
 
 </body>
 </html>
@@ -92,6 +108,35 @@ if (isset($blockAction)) {
 		setBlock(0, 0);
 		
 		header("location: settings.php");
+	}
+}
+
+if (isset($_GET["passwordChangeAction"])) {
+	$partialPassword = $_GET["p"];
+	$newPassword1 = $_GET["new_password1"];
+	$newPassword2 = $_GET["new_password2"];
+	$username = getUserFromSession()["username"];
+	$userID = getUserFromSession()["user_id"];
+	
+	$mask = retrieveMask($partialPassword, $username);
+	
+	if ($newPassword1 != "" && $newPassword2 != "") {
+		if ($mask != null) {
+			$partialHash = getPartialHash($username, $mask);
+			$salt = getUserSaltFromDB($username);
+			$currentHash = reCreatePartialPasswordHash(str_split($mask), implode($partialPassword), $salt);
+		
+			if ($partialHash == $currentHash) {
+				changePassword($newPassword1, $newPassword2, $userID);
+				echo "Pomyślnie zmieniono hasło";
+			} else {
+				echo "Nieprawidłowe hasło";
+			}
+		} else {
+			echo "Nieprawidłowe hasło";
+		}
+	} else {
+		echo "Proszę wypełnić wszystkie pola";
 	}
 }
 ?>

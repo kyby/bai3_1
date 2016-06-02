@@ -23,11 +23,83 @@ function isUsernameExists($username) {
 	return true;
 }
 
+function changePassword($newPassword1, $newPassword2, $userID) {
+	if ($newPassword1 != $newPassword2) {
+		echo "Nowe hasła nie są zgodne";
+		return;
+	}
+	if (strlen($newPassword1) < 8) {
+		echo "Hasło powinno być dłuższe niż 8 znaków";
+		return;
+	}
+	if (strlen($newPassword1) > 16) {
+		echo "Hasło powinno być krótsze niż 16 znaków";
+		return;
+	}
+	
+	$salt = randLetter() .
+				  rand(1, 10) .
+				  randLetter() .
+				  rand(1, 10) . 
+				  randLetter() .
+				  randLetter() . 
+				  rand(1, 10) . 
+				  rand(1, 10) . 
+				  rand(1, 10) . 
+				  randLetter();
+	$password_hash = crypt($newPassword1, $salt);
+	
+	$conn = getDBConnection();
+	$update_user = "update users set password_hash='$password_hash', salt='$salt' where user_id=$userID";
+	$conn->query($update_user);
+	$delete_passwords = "delete from passwords where user_id=$userID";
+	$conn->query($delete_passwords);
+		
+	$passwordLength = strlen($newPassword1);
+	$partialLength = floor($passwordLength/2);
+	if ($partialLength < 5) {
+		$partialLength = 5;
+		createPasswords($userID, $newPassword1, $passwordLength, $partialLength, $salt);
+	} else {
+		$i = 5;
+		while ($i <= $partialLength) {
+			createPasswords($userID, $newPassword1, $passwordLength, $i, $salt);
+			$i++;
+		}
+	}
+		
+	$conn->close();
+}
+
 // Rejestracja użytkownika
 function register($username, $password) {
-	if (strlen($password) < 8 || strlen($password) > 16) {
-		echo "error password length";
+	if (strlen($password) < 8) {
+		echo "Hasło powinno być dłuższe niż 8 znaków";
 		return;
+	}
+	if (strlen($password) > 16) {
+		echo "Hasło powinno być krótsze niż 16 znaków";
+		return;
+	}
+	
+	$conn = getDBConnection();
+	$select1 = "select max(user_id) as max_id from users";
+	$query1 = $conn->query($select1);
+	$row1 = $query1->fetch_assoc();
+	$userIDreg = $row1["max_id"];
+	
+	$select2 = "select max(user_id) as max_id from unregistered_users";
+	$query2 = $conn->query($select2);
+	$row2 = $query2->fetch_assoc();
+	$userIDunreg = $row2["max_id"];
+	$conn->close();
+
+	if ($userIDreg < $userIDunreg) {
+		$userID = $userIDunreg+1;
+	} else if ($userIDreg > $userIDunreg) {
+		$userID = $userIDreg+1;
+	} else {
+		$userID = $userIDunreg+1;
 	}
 
 	if (!isUsernameExists($username)) {
@@ -41,11 +113,11 @@ function register($username, $password) {
 				  rand(1, 10) . 
 				  rand(1, 10) . 
 				  randLetter();
-		$password_hash = crypt($password . $salt);
+		$password_hash = crypt($password, $salt);
 		$question_number = rand();
 		$conn = getDBConnection();
-		$insert_user = "insert into users (username, password_hash, salt, block_after, ret_question, ret_answer) values
-						('$username', '$password_hash', '$salt', 8, 'Nie jestes robotem? Wpisz $question_number', '$question_number')";
+		$insert_user = "insert into users (user_id, username, password_hash, salt, block_after, ret_question, ret_answer) values
+						($userID, '$username', '$password_hash', '$salt', 8, 'Nie jestes robotem? Wpisz $question_number', '$question_number')";
 		$query = $conn->query($insert_user);
 		$userID = $conn->insert_id;
 		
@@ -63,7 +135,12 @@ function register($username, $password) {
 		}
 		
 		$conn->close();
+		
+		return true;
+	} else {
+		echo "Podany użytkownik istnieje";
 	}
+	return false;
 }
 function randLetter() {
     $int = rand(0, 51);
@@ -72,11 +149,12 @@ function randLetter() {
     return $rand_letter;
 }
 function createPasswords($userID, $password, $passwordLength, $partialLength, $salt) {
-	$p = getNumberOfCombinations($password, $passwordLength, $partialLength);
+	//$p = getNumberOfCombinations($password, $passwordLength, $partialLength);
 	// Ograniczenie ilosci czesciowych hasel kazdej dlugosci, aby operacja wstawiania do bazy trwala krocej
-	if ($passwordLength >= 11) if ($p > 50) $p = 15;
-	if ($passwordLength >= 13) if ($p > 25) $p = 15;
-	if ($passwordLength >= 15) if ($p > 15) $p = 15;
+	/*if ($passwordLength >= 11) if ($p > 50) $p = 11;
+	if ($passwordLength >= 13) if ($p > 25) $p = 11;
+	if ($passwordLength >= 15) if ($p > 15) $p = 11;*/
+	$p = 11;
 	$masks = array();
 	while (count($masks) < $p) {
 		$mask = createMask($password, $passwordLength, $partialLength);

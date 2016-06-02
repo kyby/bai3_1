@@ -2,6 +2,14 @@
 <header>
 	<title>BAI3</title>
 <header>
+
+<?php
+include("functions.php");
+if (isLoggedIn()) {
+	header("location: messages.php");
+}
+?>
+
 <body>
 
 	<h2>Logowanie</h2>

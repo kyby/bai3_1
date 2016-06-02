@@ -2,9 +2,11 @@
 <header>
 	<title>BAI3</title>
 <header>
+
 <?php
 include("functions.php");
 ?>
+
 <body>
 
 <?php
@@ -30,12 +32,13 @@ if (isset($_GET["getUserAction"])) {
 			} else {
 				$disabled = "disabled";
 			}
-		echo "<input type='text' name='p[$i]' maxlength='1' $disabled size='1' /> ";
+		echo "<input type='password' name='p[$i]' maxlength='1' $disabled size='1' /> ";
 		}
 ?>
 			<input type="text" name="username" value="<?php echo $username; ?>" hidden />
 			<input type="submit" name="loginAction" value="Zaloguj" />
 		</form>
+		<a href="index.php">Powrot</a>
 <?php
 		}
 		
@@ -77,6 +80,7 @@ if (isset($_GET["getUserAction"])) {
 					<input type="text" name="username" value="<?php echo $username; ?>" hidden />
 					<input type="submit" name="loginAction" value="Zaloguj" />
 				</form>
+				<a href="index.php">Powrot</a>
 <?php
 			}
 			
@@ -112,6 +116,7 @@ if (isset($_GET["getUserAction"])) {
 					<input type="text" name="username" value="<?php echo $username; ?>" hidden />
 					<input type="submit" name="loginAction" value="Zaloguj" />
 				</form>
+				<a href="index.php">Powrot</a>
 <?php
 		}
 	}

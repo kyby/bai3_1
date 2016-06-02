@@ -1,8 +1,15 @@
 <html>
 <header>
 	<title>BAI3</title>
-	<?php include("functions.php"); ?>
 <header>
+
+<?php
+include("functions.php");
+if (isLoggedIn()) {
+	header("location: messages.php");
+}
+?>
+
 <body>
 
 	<h2>Rejestracja</h2>
@@ -22,10 +29,12 @@
 if (isset($_GET["registerAction"])) {
 	$username = $_GET["username"];
 	$password = $_GET["password"];
-	register($username, $password);
+	$isReg = register($username, $password);
 	
-	echo "Zarejestrowano pomyślnie<br /><br />";
-	echo "<a href='index.php'>Powrót do logowania</a><br /><br />";
+	if ($isReg) {
+		echo "Zarejestrowano pomyślnie<br /><br />";
+		echo "<a href='index.php'>Powrót do logowania</a><br /><br />";
+	}
 }
 
 ?>
